@@ -7,10 +7,7 @@ var fs = require('fs');
 var args = process.argv;
 var platform = process.platform;
 
-if (platform !== 'linux') {
-  console.log('OS not supported.');
-  process.exit(1);
-}
+var setCmd = '';
 
 
 var solo = 'http://hdwallpapersdesktop.com/wallpapers/wp-content/uploads/2011/08/Star-Wars-Luke-Skywalker-Han-Solo-Harrison-Ford-Wallpaper.png';
@@ -18,6 +15,19 @@ var solo = 'http://hdwallpapersdesktop.com/wallpapers/wp-content/uploads/2011/08
 var tmpFileName = (+new Date()).toString(36) + '.png';
 
 var linuxSet = 'gsettings set org.gnome.desktop.background picture-uri';
+
+var osxSet = 'osascript -e \'tell Application "Finder"\''
+           + '-e \'set imagePath to POSIX path of ((path to me as text) & "::") & "' + tmpFileName + '"\''
+           + '-e \'set the desktop picture to {imagePath} as alias\''
+           + '-e \'end tell\'';
+
+if (platform === 'linux') {
+  setCmd = linuxSet;
+} else if (platform === 'darwin') {
+  setCmd = osxSet;
+} else {
+  throw 'Not supported.';
+}
 
 
 // request image
