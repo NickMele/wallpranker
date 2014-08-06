@@ -63,7 +63,11 @@ http.get(solo, function (res) {
           setWpCmd = setLinux + ' file://' + stdout.slice(0, -1) + '/' + tmpFileName;
         } else if (platform === 'darwin') {
           setWpCmd = 'osascript -e \'tell Application "Finder"\''
-           + ' -e \'set the desktop picture to POSIX file "' + stdout.slice(0, -1) + '/' + tmpFileName + '" as alias\''
+           + ' -e \'tell Application "System Events"\''
+           + ' -e \'set theDesktops to a reference to every desktop\''
+           + ' -e \'set the picture of item 2 of theDesktops to POSIX file "' + stdout.slice(0, -1) + '/' + tmpFileName + '" as alias\''
+           + ' -e \'end tell\''
+           + ' -e \'set desktop picture to POSIX file "' + stdout.slice(0, -1) + '/' + tmpFileName + '" as alias\''
            + ' -e \'end tell\'';
         } else {
           setWpCmd = 'echo foo';
