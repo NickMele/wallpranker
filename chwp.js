@@ -16,15 +16,12 @@ var tmpFileName = (+new Date()).toString(36) + '.png';
 
 var linuxSet = 'gsettings set org.gnome.desktop.background picture-uri';
 
-var osxSet = 'osascript -e \'tell Application "Finder"\''
-           + '-e \'set imagePath to POSIX path of ((path to me as text) & "::") & "' + tmpFileName + '"\''
-           + '-e \'set the desktop picture to {imagePath} as alias\''
-           + '-e \'end tell\'';
+
 
 if (platform === 'linux') {
   setCmd = linuxSet;
 } else if (platform === 'darwin') {
-  setCmd = osxSet;
+  //setCmd = osxSet;
 } else {
   throw 'Not supported.';
 }
@@ -60,7 +57,17 @@ http.get(solo, function (res) {
         console.log('stdout: ' + stdout);
         console.error('stderr: ' + stderr);
 
-        var setWpCmd = linuxSet + ' file://' + stdout.slice(0, -1) + '/' + tmpFileName;
+        var setWpCmd
+
+        if (platform === 'linux') {
+          setWpCmd = setLinux + ' file://' + stdout.slice(0, -1) + '/' + tmpFileName;
+        } else if (platform === 'darwin') {
+          setWpCmd = 'osascript -e \'tell Application "Finder"\''
+           + ' -e \'set the desktop picture to POSIX file "' + stdout.slice(0, -1) + '/' + tmpFileName + '" as alias\''
+           + ' -e \'end tell\'';
+        } else {
+          setWpCmd = 'echo foo';
+        }
 
         exec(setWpCmd, function (error, stdout, stderr) {
           if (error) {
