@@ -7,7 +7,7 @@ var fs = require('fs');
 // global vars
 var args = process.argv;
 var platform = process.platform;
-var solo = 'http://hdwallpapersdesktop.com/wallpapers/wp-content/uploads/2011/08/Star-Wars-Luke-Skywalker-Han-Solo-Harrison-Ford-Wallpaper.png';
+var imageUri = 'http://hdwallpapersdesktop.com/wallpapers/wp-content/uploads/2011/08/Star-Wars-Luke-Skywalker-Han-Solo-Harrison-Ford-Wallpaper.png';
 var tmpFileName = (+new Date()).toString(36) + '.png';
 
 // verbosity
@@ -18,10 +18,10 @@ if (platform !== 'linux' && platform !== 'darwin') {
   throw 'OS not supported';
 }
 
-
+// initial function
 function getImage() {
   v && console.log('Retrieving image...');
-  http.get(solo, saveImage);
+  http.get(imageUri, saveImage);
 }
 
 // http.get callback
@@ -88,12 +88,12 @@ function buildLinuxCmd (dir) {
 // make osx command to execute
 function buildOsxCmd (dir) {
   var file = dir + '/' + tmpFileName;
-  var setter = 'osascript -e \'tell Application "Finder"\''
+  var setter = 'osascript'
            + ' -e \'tell Application "System Events"\''
            + ' -e \'set theDesktops to a reference to every desktop\''
-           + ' -e \'set the picture of item 2 of theDesktops to POSIX file "' + file + '" as alias\''
-           + ' -e \'end tell\''
-           + ' -e \'set desktop picture to POSIX file "' + file + '" as alias\''
+           + ' -e \'repeat with theItem in theDesktops\''
+           + ' -e \'  set the picture of theItem to POSIX file "' + file + '" as alias\''
+           + ' -e \'end repeat\''
            + ' -e \'end tell\'';
 
   return setter;
@@ -125,4 +125,5 @@ function removeImage () {
   });
 }
 
+// begin
 getImage();
