@@ -1,39 +1,36 @@
+// requires
 var util = require('util');
 var exec = require('child_process').exec;
 var http = require('http');
 var fs = require('fs');
 
-
+// global vars
 var args = process.argv;
 var platform = process.platform;
-
-var setCmd = '';
-
-
-var solo = 'http://hdwallpapersdesktop.com/wallpapers/wp-content/uploads/2011/08/Star-Wars-Luke-Skywalker-Han-Solo-Harrison-Ford-Wallpaper.png';
-
+var imageUri = 'http://hdwallpapersdesktop.com/wallpapers/wp-content/uploads/2011/08/Star-Wars-Luke-Skywalker-Han-Solo-Harrison-Ford-Wallpaper.png';
 var tmpFileName = (+new Date()).toString(36) + '.png';
 
-var linuxSet = 'gsettings set org.gnome.desktop.background picture-uri';
+// verbosity
+var v = false;
 
-
-
-if (platform === 'linux') {
-  setCmd = linuxSet;
-} else if (platform === 'darwin') {
-  //setCmd = osxSet;
-} else {
-  throw 'Not supported.';
+// OS test
+if (platform !== 'linux' && platform !== 'darwin') {
+  throw 'OS not supported';
 }
 
+// initial function
+function getImage() {
+  v && console.log('Retrieving image...');
+  http.get(imageUri, saveImage);
+}
 
-// request image
-http.get(solo, function (res) {
+// http.get callback
+function saveImage (res) {
   if (res.statusCode !== 200) {
-    throw 'Image responded with ' + res.statusCode;
-  } else {
-    console.log('Image response: ' + res.statusCode);
+    throw 'Image response: ' + res.statusCode;
   }
+
+  v && console.log('Image retrieved.');
 
   var image = '';
 
@@ -43,65 +40,90 @@ http.get(solo, function (res) {
   });
 
   res.on('end', function () {
-    fs.writeFile(tmpFileName, image, 'binary', function (err) {
-      if (err) {
-        throw err;
-      }
+    v && console.log('Saving image...');
+    fs.writeFile(tmpFileName, image, 'binary', getCurrDir);
+  });
+}
 
-      console.log('Image saved.');
+// fs.writeFile callback
+function getCurrDir (err) {
+  if (err) {
+    throw err;
+  }
 
-      exec('pwd', function (error, stdout, stderr) {
-        if (error) {
-          console.error('exec error: ' + error);
-        }
-        console.log('stdout: ' + stdout);
-        console.error('stderr: ' + stderr);
+  v && console.log('Image saved.');
 
-        var setWpCmd
+  exec('pwd', setWallpaper);
+}
 
-        if (platform === 'linux') {
-          setWpCmd = setLinux + ' file://' + stdout.slice(0, -1) + '/' + tmpFileName;
-        } else if (platform === 'darwin') {
-          setWpCmd = 'osascript -e \'tell Application "Finder"\''
+// exec pwd callback
+function setWallpaper (error, stdout, stderr) {
+  if (error) {
+    throw error;
+  } else if (stderr) {
+    throw stderr;
+  }
+
+  var setWpCmd;
+  var directory = stdout.slice(0, -1);
+
+  if (platform === 'linux') {
+    setWpCmd = buildLinuxCmd(directory);
+  } else if (platform === 'darwin') {
+    setWpCmd = buildOsxCmd(directory);
+  }
+
+  v && console.log('Setting wallpaper...');
+  exec(setWpCmd, cleanUp);
+}
+
+// make linux command to execute
+function buildLinuxCmd (dir) {
+  var setter = 'gsettings set org.gnome.desktop.background picture-uri';
+  var file = 'file://' + dir + '/' + tmpFileName;
+
+  return setter + ' ' + file;
+}
+
+// make osx command to execute
+function buildOsxCmd (dir) {
+  var file = dir + '/' + tmpFileName;
+  var setter = 'osascript'
            + ' -e \'tell Application "System Events"\''
            + ' -e \'set theDesktops to a reference to every desktop\''
-           + ' -e \'set the picture of item 2 of theDesktops to POSIX file "' + stdout.slice(0, -1) + '/' + tmpFileName + '" as alias\''
-           + ' -e \'end tell\''
-           + ' -e \'set desktop picture to POSIX file "' + stdout.slice(0, -1) + '/' + tmpFileName + '" as alias\''
+           + ' -e \'repeat with theItem in theDesktops\''
+           + ' -e \'  set the picture of theItem to POSIX file "' + file + '" as alias\''
+           + ' -e \'end repeat\''
            + ' -e \'end tell\'';
-        } else {
-          setWpCmd = 'echo foo';
-        }
 
-        exec(setWpCmd, function (error, stdout, stderr) {
-          if (error) {
-            console.error('exec error: ' + error);
-          }
-          console.log('stdout: ' + stdout);
-          console.error('stderr: ' + stderr);
+  return setter;
+}
 
-          console.log('Wallpaper set.');
+// exec setWallpaper callback
+function cleanUp (error, stdout, stderr) {
+  if (error) {
+    throw error;
+  } else if (stderr) {
+    throw stderr;
+  }
 
-          function rm () {
-            return fs.unlink(tmpFileName, function (error) {
-              if (error) {
-                throw error;
-              }
+  v && console.log('Wallpaper set.');
+  setTimeout(removeImage, 2000);
+}
 
-              console.log('Image deleted.');
-            });
-          }
+// fs.unlink closure
+function removeImage () {
+  v && console.log('Removing image...');
+  return fs.unlink(tmpFileName, function (error) {
+    if (error) {
+      throw error;
+    }
 
-          // leave enough time to set wp before deleting
-          setTimeout(rm, 2000);
-        })
-      })
-    })
+    v && console.log('Image deleted.');
 
+    console.log('Lock your computer next time!');
+  });
+}
 
-
-
-  })
-
-
-})
+// begin
+getImage();
