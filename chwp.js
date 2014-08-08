@@ -3,13 +3,15 @@ var util = require('util');
 var exec = require('child_process').exec;
 var http = require('http');
 var fs = require('fs');
+var randomImage = require('./randomImage');
 
 // global vars
 var args = process.argv;
 var platform = process.platform;
 var imageUri = 'http://hdwallpapersdesktop.com/wallpapers/wp-content/uploads/2011/08/Star-Wars-Luke-Skywalker-Han-Solo-Harrison-Ford-Wallpaper.png';
 var tmpFileName = (+new Date()).toString(36) + '.png';
-
+var totalAttempts = 0;
+var maxAttempts = 3;
 // verbosity
 var v = false;
 
@@ -21,12 +23,18 @@ if (platform !== 'linux' && platform !== 'darwin') {
 // initial function
 function getImage() {
   v && console.log('Retrieving image...');
-  http.get(imageUri, saveImage);
+  var query = args[2] || 'hasselhoff';
+  randomImage(query, function(error, imageUri) {
+    http.get(imageUri, saveImage);
+  })
 }
 
 // http.get callback
 function saveImage (res) {
   if (res.statusCode !== 200) {
+    if (totalAttempts++ < maxAttempts) {
+      getImage();
+    }
     throw 'Image response: ' + res.statusCode;
   }
 
