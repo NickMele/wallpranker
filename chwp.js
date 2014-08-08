@@ -2,13 +2,14 @@
 var util = require('util');
 var exec = require('child_process').exec;
 var http = require('http');
+var https = require('https');
 var fs = require('fs');
-var randomImage = require('./randomImage');
+var URL = require('url');
 
 // global vars
 var args = process.argv;
 var platform = process.platform;
-var imageUri = 'http://hdwallpapersdesktop.com/wallpapers/wp-content/uploads/2011/08/Star-Wars-Luke-Skywalker-Han-Solo-Harrison-Ford-Wallpaper.png';
+var defaultImageUri = 'http://hdwallpapersdesktop.com/wallpapers/wp-content/uploads/2011/08/Star-Wars-Luke-Skywalker-Han-Solo-Harrison-Ford-Wallpaper.png';
 var tmpFileName = (+new Date()).toString(36) + '.png';
 var totalAttempts = 0;
 var maxAttempts = 3;
@@ -24,15 +25,23 @@ if (platform !== 'linux' && platform !== 'darwin') {
 function getImage() {
   v && console.log('Retrieving image...');
   var query = args[2] || 'hasselhoff';
-  randomImage(query, function(error, imageUri) {
-    http.get(imageUri, saveImage);
-  })
+  if (totalAttempts < maxAttempts) {
+    randomImage(query, function(error, imageUri) {
+      if (error) {
+        return http.get(defaultImageUri, saveImage);
+      }
+      return http.get(imageUri, saveImage);
+    });
+  } else {
+    return http.get(defaultImageUri, saveImage);
+  }
+  totalAttempts++;
 }
 
 // http.get callback
 function saveImage (res) {
   if (res.statusCode !== 200) {
-    if (totalAttempts++ < maxAttempts) {
+    if (totalAttempts < maxAttempts) {
       getImage();
     }
     throw 'Image response: ' + res.statusCode;
@@ -130,6 +139,57 @@ function removeImage () {
     v && console.log('Image deleted.');
 
     console.log('Lock your computer next time!');
+  });
+}
+
+// Generate url to search Bing with
+function generateSearchUrl(query) {
+  return URL.format({
+    protocol: 'https',
+    auth: 'user:320e4Pia1S913at31CkWgi/tG+vWCdXSY8FltXbqqwY',
+    host: 'api.datamarket.azure.com',
+    pathname: '/Bing/Search/Image',
+    query: {
+      $format: 'json',
+      Query: '\'' + query + '\'',
+      ImageFilters: '\'Aspect:Wide\'',
+      Adult: '\'Strict\''
+    }
+  });
+}
+
+// Respond with a random image
+function respond(body, callback) {
+  try {
+    body = JSON.parse(body);
+  } catch(e) {
+    return callback(body);
+  }
+  var results = body && body.d && body.d.results;
+  if (results.length) {
+    var totalResults = results.length;
+    var random = Math.floor(Math.random() * totalResults);
+    var imageUrl = results[random].MediaUrl;
+    return callback(null, imageUrl);
+  } else {
+    return callback('Could not find image');
+  }
+}
+
+// Get images from bing
+function randomImage(query, callback) {
+  var searchUrl = generateSearchUrl(query);
+
+  https.get(searchUrl, function(res) {
+    var body = '';
+
+    res.on('data', function(chunk) {
+      body += chunk;
+    });
+
+    res.on('end', function() {
+      respond(body, callback);
+    });
   });
 }
 
